@@ -1,4 +1,4 @@
-import { useSiteContent } from '../services/siteContent';
+import { resolveMediaUrl, useSiteContent } from '../services/siteContent';
 
 const clientNames = [
   ['Har Ghar Jal', 'logo-name--jal'],
@@ -38,8 +38,9 @@ export default function Clients() {
           id: client.id,
           name,
           className: matchingName?.[1] || '',
-          src: typeof client.logo === 'string' && client.logo.trim() ? client.logo : matchingLogo?.src,
-          alt: matchingLogo?.alt || name,
+          src: resolveMediaUrl(client.logo) || matchingLogo?.src,
+          fallbackSrc: matchingLogo?.src,
+          alt: name,
           url: typeof client.url === 'string' && /^https?:\/\//i.test(client.url) ? client.url : ''
         };
       })
@@ -47,7 +48,24 @@ export default function Clients() {
   const clients = site && backendClients.length ? backendClients : clientItems;
   const renderClient = (item, set) => {
     const content = item.src
-      ? <img src={item.src} alt={set === 0 ? item.alt : ''} />
+      ? <img
+          src={item.src}
+          alt={set === 0 ? item.alt : ''}
+          onError={(event) => {
+            const image = event.currentTarget;
+            if (image.dataset.errorHandled) return;
+            image.dataset.errorHandled = 'true';
+            image.onerror = null;
+            if (item.fallbackSrc && item.src !== item.fallbackSrc) {
+              image.src = item.fallbackSrc;
+              return;
+            }
+            const fallback = document.createElement('span');
+            fallback.className = `logo-name ${item.className || ''}`;
+            fallback.textContent = item.name || item.alt;
+            image.replaceWith(fallback);
+          }}
+        />
       : <span className={`logo-name ${item.className}`}>
           {item.name}{item.name.toLowerCase() === 'samudra' && <small>LED Lighting</small>}
         </span>;

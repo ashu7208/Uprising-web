@@ -1,7 +1,14 @@
 import { useSyncExternalStore } from 'react';
 
-const API = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+const API = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 const CACHE_KEY = 'uprising_site_content_v1';
+
+export const resolveMediaUrl = (path) => {
+  const mediaPath = typeof path === 'string' ? path.trim() : '';
+  if (!mediaPath) return '';
+  if (/^(https?:\/\/|data:|blob:)/i.test(mediaPath)) return mediaPath;
+  return `${API}/${mediaPath.replace(/^\/+/, '')}`;
+};
 
 function readCache() {
   try {
