@@ -1,19 +1,11 @@
-const DATA_KEY = 'uprising_admin_proto_v1';
-export const SESSION_KEY = 'uprising_admin_user';
+export const SESSION_KEY = 'uprising_admin_session';
 
 export const api = {
+  // Content now lives in the backend. These stubs keep older imports from crashing.
   load() {
-    try {
-      const value = localStorage.getItem(DATA_KEY);
-      return value ? JSON.parse(value) : null;
-    } catch (error) {
-      console.error('Unable to load admin data from local storage.', error);
-      return null;
-    }
+    return null;
   },
-  save(data) {
-    localStorage.setItem(DATA_KEY, JSON.stringify(data));
-  },
+  save() {},
   loadSession() {
     try {
       return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
@@ -22,8 +14,8 @@ export const api = {
       return null;
     }
   },
-  saveSession(user) {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  saveSession(session) {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
   },
   clearSession() {
     sessionStorage.removeItem(SESSION_KEY);

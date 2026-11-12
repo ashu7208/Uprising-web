@@ -3,49 +3,54 @@ import { useNavigate } from 'react-router-dom';
 import { useStore } from './StoreContext';
 import { useUI } from './UIContext';
 import { api } from '../lib/storage';
+import { request } from '../lib/backend';
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => api.loadSession());
-  const { state, update } = useStore();
+  const [user, setUser] = useState(() => api.loadSession()?.user || null);
+  const { reload, reset } = useStore();
   const { toast } = useUI();
   const navigate = useNavigate();
 
-  const login = useCallback((email, password) => {
-    const record = state.users.find((item) => item.email === email.trim() && item.password === password && item.status === 'active');
-    if (!record) {
-      toast('Wrong email or password, or the account is disabled.', 'error');
+  const login = useCallback(async (email, password) => {
+    try {
+      const { token, user: profile } = await request('/api/auth/login', {
+        method: 'POST', body: { email: email.trim(), password }, auth: false,
+      });
+      api.saveSession({ token, user: profile });
+      await reload();
+      setUser(profile);
+      navigate('/');
+      return true;
+    } catch (error) {
+      api.clearSession();
+      toast(error.message, 'error');
       return false;
     }
-    const session = { name: record.name, role: record.role, id: record.id };
-    setUser(session);
-    api.saveSession(session);
-    update(() => {}, { action: 'Login', module: 'Auth', user: session });
-    navigate('/');
-    return true;
-  }, [state.users, toast, update, navigate]);
+  }, [reload, toast, navigate]);
 
-  const logout = useCallback(() => {
-    update(() => {}, { action: 'Logout', module: 'Auth', user });
+  const logout = useCallback(async () => {
+    try {
+      await request('/api/auth/logout', { method: 'POST' });
+    } catch { /* sign out anyway */ }
     api.clearSession();
+    reset();
     setUser(null);
     navigate('/login');
-  }, [update, user, navigate]);
+  }, [reset, navigate]);
 
   const changePassword = useCallback((password) => {
-    if (password.length < 6) {
-      toast('At least 6 characters', 'error');
+    if (password.length < 8) {
+      toast('At least 8 characters', 'error');
       return false;
     }
-    update((draft) => {
-      const record = draft.users.find((item) => item.id === user?.id);
-      if (record) record.password = password;
-    }, { action: 'Changed password', module: 'Auth', user });
-    toast('Password changed');
+    request('/api/auth/change-password', { method: 'POST', body: { password } })
+      .then(() => toast('Password changed'))
+      .catch((error) => toast(error.message, 'error'));
     return true;
-  }, [update, user, toast]);
+  }, [toast]);
 
   const value = useMemo(() => ({ user, login, logout, changePassword }), [user, login, logout, changePassword]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

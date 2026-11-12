@@ -21,10 +21,16 @@ import NavFooter from './pages/NavFooter';
 import Seo from './pages/Seo';
 import Users from './pages/Users';
 import NotAllowed from './pages/NotAllowed';
+import { useStore } from './context/StoreContext';
 
 function AuthenticationGuard({ children }) {
   const { user } = useAuth();
-  return user ? children : <Navigate to="/login" replace />;
+  const { ready, loadError, retry } = useStore();
+  if (!user) return <Navigate to="/login" replace />;
+  if (ready) return children;
+  return <div className="login"><div className="card">
+    {loadError ? <><p>{loadError}</p><button className="b" onClick={retry}>Try again</button></> : <p>Loading…</p>}
+  </div></div>;
 }
 
 function PermissionRoute({ module, children }) {
