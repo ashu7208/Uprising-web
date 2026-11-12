@@ -4,6 +4,9 @@ const API = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 const CACHE_KEY = 'uprising_site_content_v1';
 
 export const resolveMediaUrl = (path) => {
+  if (typeof path === 'number' && Number.isSafeInteger(path) && path > 0) {
+    return `${API}/api/public/media/${path}/file`;
+  }
   const mediaPath = typeof path === 'string' ? path.trim() : '';
   if (!mediaPath) return '';
   if (/^(https?:\/\/|data:|blob:)/i.test(mediaPath)) return mediaPath;

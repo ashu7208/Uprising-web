@@ -259,6 +259,21 @@ app.post('/api/enquiries', enquiryLimiter, async (req, res) => {
   res.status(201).json({ ok: true });
 });
 
+app.get('/api/public/media/:id/file', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: 'Bad media id.' });
+
+  const { rows } = await pool.query("SELECT data FROM content WHERE collection = 'media'");
+  const media = Array.isArray(rows[0]?.data) ? rows[0].data.find((item) => Number(item.id) === id) : null;
+  const match = typeof media?.src === 'string'
+    ? media.src.match(/^data:(image\/(?:jpeg|png|webp|svg\+xml));base64,([A-Za-z0-9+/]+={0,2})$/)
+    : null;
+  if (!match) return res.status(404).json({ error: 'Media not found.' });
+
+  res.set('Cache-Control', 'public, max-age=300');
+  res.type(match[1]).send(Buffer.from(match[2], 'base64'));
+});
+
 app.get('/api/public/content', async (req, res) => {
   const { rows } = await pool.query('SELECT collection, data FROM content');
   const c = Object.fromEntries(rows.map((r) => [r.collection, r.data]));
