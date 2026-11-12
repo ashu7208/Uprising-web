@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
+import { useSiteContent } from '../services/siteContent';
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -11,6 +12,13 @@ const navItems = [
 ];
 
 export default function Header() {
+  const site = useSiteContent();
+  const items = site?.nav?.length
+    ? site.nav.map(({ label, link }) => {
+        const to = link || '/';
+        return { to, label, hash: to.includes('#') };
+      })
+    : navItems;
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(window.scrollY > 12);
   const { pathname } = useLocation();
@@ -44,7 +52,7 @@ export default function Header() {
         </NavLink>
 
         <nav className={`main-nav ${open ? 'open' : ''}`} aria-label="Main navigation">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const classes = ({ isActive }) => `nav-link${isActive ? ' active' : ''}`;
 
             if (item.hash) {
