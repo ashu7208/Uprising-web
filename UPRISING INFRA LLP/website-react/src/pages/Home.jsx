@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Clients from '../components/Clients';
 import CompanyNumbers from '../components/CompanyNumbers';
 import FAQ from '../components/FAQ';
 import LeadershipFeature from '../components/LeadershipFeature';
+import { useSiteContent, findSection, textLines, textRows } from '../services/siteContent';
 
 const serviceCards = [
   { title: 'One Company. Complete Infrastructure Solutions.', detail: 'Civil, electrical and water treatment under one roof, with a single point of responsibility.', icon: 'building' },
@@ -100,12 +101,92 @@ function WhyIcon({ index }) {
   );
 }
 
+const HERO_CLASSES = ['civil', 'electrical', 'water'];
+const WHO_ICONS = ['building', 'crane', 'bolt', 'water'];
+
+// Built-in text, used until the backend answers or if it is unreachable
+const DEFAULT_SECTIONS = {
+  Hero: {
+    subtitle: 'CIVIL CONSTRUCTION | ELECTRICAL | WATER TREATMENT',
+    heading: 'Building Strong Foundations. Powering Progress. Purifying Tomorrow.',
+    body: 'Uprising Infra LLP delivers reliable civil construction, electrical and water treatment solutions across Mumbai with quality workmanship, safety and on-time delivery.',
+    b1t: 'Get a Free Quote', b1l: '/contact', b2t: 'Our Services', b2l: '/services'
+  },
+  'Who We Are': {
+    heading: 'A trusted partner for construction, power and water',
+    body: 'Uprising Infra LLP is a Mumbai-based infrastructure company providing end-to-end solutions in civil construction, electrical installation and water treatment. We work with housing societies, builders, industries, institutions and commercial clients who need dependable execution, transparent pricing and quality that lasts.\n\nWith one trusted team handling construction, power and water systems, you save time, avoid coordination problems and get a single point of responsibility for your project.',
+    items: serviceCards.map((card) => `${card.title} | ${card.detail}`).join('\n')
+  },
+  'Why Choose Us': {
+    heading: 'One reliable team, from planning to support',
+    items: whyCards.map((card) => `${card.title} | ${card.text}`).join('\n')
+  },
+  'Who We Serve': {
+    heading: 'Infrastructure solutions for every type of client',
+    items: 'Housing societies and apartment complexes\nBuilders and developers\nIndustrial units and factories\nCommercial buildings and offices\nSchools, hospitals and institutions\nIndividual property owners'
+  },
+  'How We Work': {
+    heading: 'A clear process from enquiry to support',
+    items: processSteps.map((step) => `${step.title} | ${step.summary} | ${step.detail}`).join('\n')
+  },
+  'Final CTA': {
+    heading: 'Ready to start your project?',
+    body: 'Talk to Uprising Infra LLP today and get a free site visit and quotation.',
+    b1t: 'Contact Us Now', b1l: '/contact'
+  }
+};
+
+const wordsOf = (text) => String(text || '').trim().split(/\s+/).filter(Boolean);
+const sentencesOf = (text) => (String(text || '').match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).map((part) => part.trim()).filter(Boolean);
+
+// Splits a heading into up to 3 lines of similar length (the headings animate line by line)
+function balancedLines(text, count = 3) {
+  const words = wordsOf(text);
+  const target = words.join(' ').length / count;
+  const lines = [];
+  let current = [];
+  words.forEach((word) => {
+    current.push(word);
+    if (current.join(' ').length >= target && lines.length < count - 1) {
+      lines.push(current.join(' '));
+      current = [];
+    }
+  });
+  if (current.length) lines.push(current.join(' '));
+  return lines;
+}
+
 export default function Home() {
   const [expandedService, setExpandedService] = useState(null);
   const [activeStep, setActiveStep] = useState(null);
+  const site = useSiteContent();
+
+  // Before the backend answers, use built-in text. Afterwards, a section missing or switched off in the admin panel is hidden.
+  const part = (name) => (site ? findSection(site.home, name) : DEFAULT_SECTIONS[name]);
+  const shown = (name) => !site || Boolean(findSection(site.home, name));
+
+  const hero = part('Hero');
+  const who = part('Who We Are');
+  const why = part('Why Choose Us');
+  const serve = part('Who We Serve');
+  const how = part('How We Work');
+  const cta = part('Final CTA');
+
+  const heroSentences = sentencesOf(hero?.heading);
+  const whoLines = balancedLines(who?.heading);
+  const whoParagraphs = String(who?.body || '').split(/\n\s*\n/).map((text) => text.trim()).filter(Boolean);
+  const whoCards = textRows(who?.items).map(([title, detail], index) => ({ title, detail: detail || '', icon: WHO_ICONS[index] || 'building' }));
+  const whyWords = wordsOf(why?.heading);
+  const whyList = textRows(why?.items).map(([title, text]) => ({ title, text: text || '' }));
+  const serveItems = textLines(serve?.items);
+  const howWords = wordsOf(how?.heading);
+  const stepList = textRows(how?.items).map(([title, summary, detail], index) => ({
+    number: index + 1, title, summary: summary || '', detail: detail || summary || ''
+  }));
 
   return (
     <main id="main">
+      {hero && (
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero-stage" aria-hidden="true">
           <div className="stage-drift">
@@ -130,51 +211,48 @@ export default function Home() {
         </div>
 
         <div className="hero-content">
-          <span className="eyebrow">CIVIL CONSTRUCTION | ELECTRICAL | WATER TREATMENT</span>
+          {hero.subtitle && <span className="eyebrow">{hero.subtitle}</span>}
           <h1 id="hero-title">
-            <span className="hero-sentence hero-sentence--civil">
-              <span className="word-mask"><span className="word">Building</span></span>
-              {' '}
-              <span className="word-mask"><span className="word">Strong</span></span>
-              {' '}
-              <span className="word-mask"><span className="word">Foundations.</span></span>
-            </span>
-            <span className="hero-sentence hero-sentence--electrical">
-              <span className="word-mask"><span className="word">Powering</span></span>
-              {' '}
-              <span className="word-mask"><span className="word">Progress.</span></span>
-            </span>
-            <span className="hero-sentence hero-sentence--water">
-              <span className="word-mask"><span className="word">Purifying</span></span>
-              {' '}
-              <span className="word-mask"><span className="word">Tomorrow.</span></span>
-            </span>
+            {heroSentences.map((sentence, sentenceIndex) => (
+              <span
+                className={`hero-sentence hero-sentence--${HERO_CLASSES[Math.min(sentenceIndex, HERO_CLASSES.length - 1)]}`}
+                key={`${sentenceIndex}-${sentence}`}
+              >
+                {wordsOf(sentence).map((word, wordIndex) => (
+                  <Fragment key={wordIndex}>
+                    {wordIndex > 0 && ' '}
+                    <span className="word-mask"><span className="word">{word}</span></span>
+                  </Fragment>
+                ))}
+              </span>
+            ))}
           </h1>
 
-          <p className="lead">
-            Uprising Infra LLP delivers reliable civil construction, electrical and water treatment solutions across Mumbai with quality workmanship, safety and on-time delivery.
-          </p>
+          {hero.body && <p className="lead">{hero.body}</p>}
 
           <div className="hero-actions">
-            <Link to="/contact" className="btn btn-primary"><span>Get a Free Quote</span></Link>
-            <Link to="/services" className="btn btn-outline"><span>Our Services</span></Link>
+            {hero.b1t && <Link to={hero.b1l || '/contact'} className="btn btn-primary"><span>{hero.b1t}</span></Link>}
+            {hero.b2t && <Link to={hero.b2l || '/services'} className="btn btn-outline"><span>{hero.b2t}</span></Link>}
           </div>
         </div>
       </section>
+      )}
 
+      {who && (
       <section className="who-section" id="who-we-are" aria-labelledby="who-title">
         <div className="who-background" aria-hidden="true" />
         <div className="who-content-wash" aria-hidden="true" />
 
         <div className="who-copy">
           <span className="who-eyebrow">Who We Are</span>
-          <h2 id="who-title" aria-label="A trusted partner for construction, power and water">
-            <span className="who-word-mask"><span className="who-word">A trusted partner</span></span>
-            <span className="who-word-mask"><span className="who-word">for construction,</span></span>
-            <span className="who-word-mask"><span className="who-word">power and water</span></span>
+          <h2 id="who-title" aria-label={who.heading}>
+            {whoLines.map((line, lineIndex) => (
+              <span className="who-word-mask" key={`${lineIndex}-${line}`}><span className="who-word">{line}</span></span>
+            ))}
           </h2>
-          <p className="who-paragraph who-paragraph--first">Uprising Infra LLP is a Mumbai-based infrastructure company providing end-to-end solutions in civil construction, electrical installation and water treatment. We work with housing societies, builders, industries, institutions and commercial clients who need dependable execution, transparent pricing and quality that lasts.</p>
-          <p className="who-paragraph who-paragraph--second">With one trusted team handling construction, power and water systems, you save time, avoid coordination problems and get a single point of responsibility for your project.</p>
+          {whoParagraphs.map((paragraph, paragraphIndex) => (
+            <p className={`who-paragraph ${paragraphIndex === 0 ? 'who-paragraph--first' : 'who-paragraph--second'}`} key={paragraphIndex}>{paragraph}</p>
+          ))}
           <Link className="who-link" to="/about">About Uprising Infra LLP <span aria-hidden="true">→</span></Link>
         </div>
 
@@ -182,13 +260,13 @@ export default function Home() {
           <div className="who-tilt">
             <div className="who-glare" aria-hidden="true" />
             <div className="who-rows">
-              {serviceCards.map((item, index) => {
+              {whoCards.map((item, index) => {
                 const expanded = expandedService === index;
                 const toggle = () => setExpandedService(expanded ? null : index);
                 return (
                 <div
                   className={`who-row${expanded ? ' is-open' : ''}`}
-                  key={item.title}
+                  key={`${index}-${item.title}`}
                   role="button"
                   tabIndex={0}
                   aria-expanded={expanded}
@@ -239,27 +317,25 @@ export default function Home() {
         </div>
         <span className="who-sky-sheen" aria-hidden="true" />
       </section>
+      )}
 
+      {why && (
       <section className="why-section" id="why-choose-us" aria-labelledby="why-title">
         <div className="fx why-fixed-bg" aria-hidden="true" />
         <div className="why-content">
           <header className="why-heading">
             <span className="why-eyebrow">Why Choose Us</span>
-            <h2 id="why-title" aria-label="One reliable team, from planning to support">
-              <span className="why-word-mask"><span className="why-word">One</span></span>
-              <span className="why-word-mask"><span className="why-word">reliable</span></span>
-              <span className="why-word-mask"><span className="why-word">team,</span></span>
-              <span className="why-word-mask"><span className="why-word">from</span></span>
-              <span className="why-word-mask"><span className="why-word">planning</span></span>
-              <span className="why-word-mask"><span className="why-word">to</span></span>
-              <span className="why-word-mask"><span className="why-word">support</span></span>
+            <h2 id="why-title" aria-label={why.heading}>
+              {whyWords.map((word, wordIndex) => (
+                <span className="why-word-mask" key={`${wordIndex}-${word}`}><span className="why-word">{word}</span></span>
+              ))}
             </h2>
           </header>
           <div className="why-grid">
-            {whyCards.map((item, index) => (
-              <article className={`why-card${index === 0 ? ' why-card--lead' : ''}`} key={item.title} tabIndex={0}>
+            {whyList.map((item, index) => (
+              <article className={`why-card${index === 0 ? ' why-card--lead' : ''}`} key={`${index}-${item.title}`} tabIndex={0}>
                 <div className="why-tilt"><div className="why-glare" aria-hidden="true" /><div className="why-card-content">
-                  <span className="why-icon-tile"><WhyIcon index={index} /></span>
+                  <span className="why-icon-tile"><WhyIcon index={index % 7} /></span>
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
                   {index === 0 && (
@@ -275,67 +351,59 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
+      {serve && (
       <section className="section who-serve-section">
         <div className="container">
           <div className="section-head">
             <span className="eyebrow">Who We Serve</span>
-            <h2>Infrastructure solutions for every type of client</h2>
+            <h2>{serve.heading}</h2>
           </div>
           <ul className="check-list">
-            <li>Housing societies and apartment complexes</li>
-            <li>Builders and developers</li>
-            <li>Industrial units and factories</li>
-            <li>Commercial buildings and offices</li>
-            <li>Schools, hospitals and institutions</li>
-            <li>Individual property owners</li>
+            {serveItems.map((item) => <li key={item}>{item}</li>)}
           </ul>
         </div>
       </section>
+      )}
 
+      {how && (
       <section className="how-we-work-section process" aria-labelledby="process-title">
         <div className="process-bg" aria-hidden="true" />
         <div className="process-inner">
           <header className="process-heading">
             <span className="process-eyebrow">How We Work</span>
-            <h2 id="process-title" aria-label="A clear process from enquiry to support">
-              <span className="process-word-mask"><span className="process-word">A</span></span>
-              {' '}
-              <span className="process-word-mask"><span className="process-word">clear</span></span>
-              {' '}
-              <span className="process-word-mask"><span className="process-word">process</span></span>
-              {' '}
-              <span className="process-word-mask"><span className="process-word">from</span></span>
-              {' '}
-              <span className="process-word-mask"><span className="process-word">enquiry</span></span>
-              {' '}
-              <span className="process-word-mask"><span className="process-word">to</span></span>
-              {' '}
-              <span className="process-word-mask"><span className="process-word">support</span></span>
+            <h2 id="process-title" aria-label={how.heading}>
+              {howWords.map((word, wordIndex) => (
+                <Fragment key={`${wordIndex}-${word}`}>
+                  {wordIndex > 0 && ' '}
+                  <span className="process-word-mask"><span className="process-word">{word}</span></span>
+                </Fragment>
+              ))}
             </h2>
           </header>
 
           <div className="process-progress">
             <span className="process-progress-label" aria-live="polite">
-              {activeStep ? `Step ${activeStep}: ${processSteps[activeStep - 1].title}` : 'Click a step to see how it works'}
+              {activeStep && stepList[activeStep - 1] ? `Step ${activeStep}: ${stepList[activeStep - 1].title}` : 'Click a step to see how it works'}
             </span>
-            <span className="process-progress-count">{activeStep || 0} / 6</span>
+            <span className="process-progress-count">{activeStep || 0} / {stepList.length}</span>
             <div
               className="process-progress-track"
               role="progressbar"
               aria-label="Process progress"
               aria-valuemin={0}
-              aria-valuemax={6}
+              aria-valuemax={stepList.length}
               aria-valuenow={activeStep || 0}
             >
-              <span className="process-progress-fill" style={{ transform: `scaleX(${(activeStep || 0) / 6})` }} />
+              <span className="process-progress-fill" style={{ transform: `scaleX(${(activeStep || 0) / (stepList.length || 1)})` }} />
             </div>
           </div>
           <div className="process-grid">
-            {processSteps.map((step) => (
+            {stepList.map((step) => (
               <article
                 className={`process-card${activeStep === step.number ? ' is-open' : ''}${activeStep > step.number ? ' is-done' : ''}`}
-                key={step.number}
+                key={`${step.number}-${step.title}`}
                 role="button"
                 tabIndex={0}
                 aria-expanded={activeStep === step.number}
@@ -366,23 +434,28 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
-      <LeadershipFeature />
-      <CompanyNumbers />
-      <Clients />
-      <FAQ />
+      {shown('Leadership') && <LeadershipFeature />}
+      {shown('Company Numbers') && <CompanyNumbers />}
+      {shown('Clients') && <Clients />}
+      {shown('FAQs') && <FAQ />}
 
+      {cta && (
       <section className="section section-sand">
         <div className="container">
           <div className="cta-band">
-            <h2>Ready to start your project?</h2>
-            <p>Talk to Uprising Infra LLP today and get a free site visit and quotation.</p>
-            <div className="cta-actions">
-              <Link to="/contact" className="btn btn-light"><span>Contact Us Now</span></Link>
-            </div>
+            <h2>{cta.heading}</h2>
+            {cta.body && <p>{cta.body}</p>}
+            {cta.b1t && (
+              <div className="cta-actions">
+                <Link to={cta.b1l || '/contact'} className="btn btn-light"><span>{cta.b1t}</span></Link>
+              </div>
+            )}
           </div>
         </div>
       </section>
+      )}
     </main>
   );
 }
