@@ -162,7 +162,20 @@ export default function Home() {
   const site = useSiteContent();
 
   // Before the backend answers, use built-in text. Afterwards, a section missing or switched off in the admin panel is hidden.
-  const part = (name) => (site ? findSection(site.home, name) : DEFAULT_SECTIONS[name]);
+  const part = (name) => {
+    if (!site) return DEFAULT_SECTIONS[name];
+    const section = findSection(site.home, name);
+    if (!section) return null;
+    const fallback = DEFAULT_SECTIONS[name] || {};
+    return {
+      ...fallback,
+      ...Object.fromEntries(
+        Object.entries(section).filter(([, value]) =>
+          value != null && (typeof value !== 'string' || value.trim() !== '')
+        )
+      )
+    };
+  };
   const shown = (name) => !site || Boolean(findSection(site.home, name));
 
   const hero = part('Hero');
@@ -190,7 +203,7 @@ export default function Home() {
       <section className="hero" aria-labelledby="hero-title">
         <div className="hero-stage" aria-hidden="true">
           <div className="stage-drift">
-            <img className="stage-base" src="/assets/hero-infrastructure.png" alt="" fetchpriority="high" />
+            <img className="stage-base" src={hero.image || '/assets/hero-infrastructure.png'} alt="" fetchpriority="high" />
             <div className="panel-veil panel-veil--civil" />
             <div className="panel-veil panel-veil--electrical" />
             <div className="panel-veil panel-veil--water" />
@@ -361,7 +374,7 @@ export default function Home() {
             <h2>{serve.heading}</h2>
           </div>
           <ul className="check-list">
-            {serveItems.map((item) => <li key={item}>{item}</li>)}
+            {serveItems.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}
           </ul>
         </div>
       </section>
