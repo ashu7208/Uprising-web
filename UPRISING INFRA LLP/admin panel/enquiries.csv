@@ -1,0 +1,7 @@
+"Name","Phone","Email","Service","Message","Status","Received","Follow-up"
+"Demo Customer A","9800000001","a@example.com","Civil","Need waterproofing quote for our society.","New","2026-11-10T08:49:46.360Z",""
+"Demo Customer B","9800000002","b@example.com","Electrical","Panel upgrade enquiry.","Contacted","2026-10-31T08:49:46.360Z",""
+"Demo Customer C","9800000003","c@example.com","Water Treatment","STP maintenance contract.","In Progress","2026-10-08T08:49:46.360Z",""
+"Demo Customer D","9800000004","d@example.com","Civil","Building repair.","Converted","2026-09-11T08:49:46.360Z",""
+"Demo Customer E","9800000005","e@example.com","Other","General query.","Closed","2026-08-09T08:49:46.360Z",""
+"QA enquiry","9800000099","qa@example.com","Civil","Testing notes","Contacted","2026-11-12T08:57:52.512Z","2026-11-20"
