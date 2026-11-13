@@ -18,6 +18,7 @@ export default function ContactForm() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (status.type === 'loading') return;
 
     const digits = values.phone.replace(/\D/g, '');
     if (digits.length < 10 || digits.length > 15) {
@@ -27,7 +28,13 @@ export default function ContactForm() {
 
     setStatus({ type: 'loading', message: 'Sending your request…' });
     try {
-      await submitContactRequest(values);
+      await submitContactRequest({
+        name: values.name.trim(),
+        phone: values.phone.trim(),
+        email: values.email.trim(),
+        service: values.service.trim(),
+        message: values.message.trim()
+      });
       setStatus({ type: 'success', message: 'Your request has been sent.' });
       setValues({ name: '', phone: '', email: '', service: '', message: '' });
     } catch (error) {
