@@ -1,42 +1,96 @@
 import { Link } from 'react-router-dom';
+import { textLines, useSiteContent } from '../services/siteContent';
 
-const civilServiceList = [
-  'Residential and commercial building construction',
-  'Industrial sheds and factory structures',
-  'RCC works and structural repairs',
-  'Structural and building repair for old societies',
-  'Waterproofing and leakage solutions',
-  'Plastering, painting and finishing works',
-  'Flooring, tiling and paving',
-  'Road, drainage and compound wall works',
-  'Renovation and interior civil works',
-  'Society maintenance and redevelopment-related works'
+// detail, benefits, icon, and image are not backend-driven.
+const DEFAULT_SERVICES = [
+  {
+    key: 'civil-construction',
+    title: 'Civil Construction',
+    short: 'From new structures to repair and renovation, we deliver strong and long-lasting civil works.',
+    features: [
+      'Residential and commercial building construction',
+      'Industrial sheds and factory structures',
+      'RCC works and structural repairs',
+      'Structural and building repair for old societies',
+      'Waterproofing and leakage solutions',
+      'Plastering, painting and finishing works',
+      'Flooring, tiling and paving',
+      'Road, drainage and compound wall works',
+      'Renovation and interior civil works',
+      'Society maintenance and redevelopment-related works'
+    ]
+  },
+  {
+    key: 'electrical-works',
+    title: 'Electrical Works',
+    short: 'Safe, compliant and efficient electrical solutions for every type of property.',
+    features: [
+      'Complete electrical wiring for residential, commercial and industrial sites',
+      'LT/HT panel installation and maintenance',
+      'Distribution boards and cable laying',
+      'Earthing and lightning protection',
+      'Street lighting and outdoor lighting',
+      'LED lighting and energy-saving solutions',
+      'Generator and UPS connections',
+      'Electrical load balancing and fault finding',
+      'Annual maintenance contracts (AMC)',
+      'Fire alarm and CCTV cabling support'
+    ]
+  },
+  {
+    key: 'water-treatment',
+    title: 'Water Treatment',
+    short: 'Clean water and responsible wastewater management for homes, societies and industries.',
+    features: [
+      'Sewage Treatment Plants (STP): installation, upgrade and maintenance',
+      'Effluent Treatment Plants (ETP) for industries',
+      'Water Treatment Plants (WTP) and filtration systems',
+      'RO plants and softeners',
+      'Rainwater harvesting systems',
+      'Water tank cleaning and pipeline works',
+      'Pumps, motors and plumbing installation',
+      'Operation and maintenance (O&M) contracts',
+      'Water testing and quality support'
+    ]
+  }
 ];
 
-const electricalServiceList = [
-  'Complete electrical wiring for residential, commercial and industrial sites',
-  'LT/HT panel installation and maintenance',
-  'Distribution boards and cable laying',
-  'Earthing and lightning protection',
-  'Street lighting and outdoor lighting',
-  'LED lighting and energy-saving solutions',
-  'Generator and UPS connections',
-  'Electrical load balancing and fault finding',
-  'Annual maintenance contracts (AMC)',
-  'Fire alarm and CCTV cabling support'
-];
+const nonEmpty = (value) => String(value ?? '').trim();
 
-const waterServiceList = [
-  'Sewage Treatment Plants (STP): installation, upgrade and maintenance',
-  'Effluent Treatment Plants (ETP) for industries',
-  'Water Treatment Plants (WTP) and filtration systems',
-  'RO plants and softeners',
-  'Rainwater harvesting systems',
-  'Water tank cleaning and pipeline works',
-  'Pumps, motors and plumbing installation',
-  'Operation and maintenance (O&M) contracts',
-  'Water testing and quality support'
-];
+function readServicesContent(site) {
+  if (!site) return DEFAULT_SERVICES;
+
+  try {
+    const backendServices = Array.isArray(site.services) ? site.services : [];
+
+    return DEFAULT_SERVICES.map((defaultService) => {
+      const categoryTitle = defaultService.title.toLowerCase();
+      const exactMatch = backendServices.find((service) => (
+        nonEmpty(service?.title).toLowerCase() === categoryTitle
+      ));
+      const backendService = exactMatch || backendServices.find((service) => {
+        const title = nonEmpty(service?.title).toLowerCase();
+        return title && (title.includes(categoryTitle) || categoryTitle.includes(title));
+      });
+
+      if (!backendService) return defaultService;
+
+      const title = nonEmpty(backendService.title);
+      const short = nonEmpty(backendService.short);
+      const features = textLines(backendService.features);
+
+      return {
+        ...defaultService,
+        title: title || defaultService.title,
+        short: short || defaultService.short,
+        features: features.length ? features : defaultService.features
+      };
+    });
+  } catch (error) {
+    console.error('Unable to parse Services page content:', error);
+    return DEFAULT_SERVICES;
+  }
+}
 
 const serviceHeadingWords = 'Civil construction, electrical works and water treatment'.split(' ');
 const serviceLeadWords = 'Reliable infrastructure solutions for housing societies, industries and commercial projects.'.split(' ');
@@ -44,6 +98,9 @@ const serviceLeadDelay = 0.55 + serviceHeadingWords.length * 0.09 + 0.2;
 const serviceIconDelay = `${serviceLeadDelay + serviceLeadWords.length * 0.035 + 0.3}s`;
 
 export default function Services() {
+  const site = useSiteContent();
+  const services = readServicesContent(site);
+
   return (
     <main id="main">
       <section className="hero services-hero" id="hero">
@@ -83,10 +140,10 @@ export default function Services() {
       <section className="section" id="civil-construction">
         <div className="civil-construction-bg" aria-hidden="true" />
         <div className="container">
-          <div className="section-head"><span className="eyebrow">Service 01</span><h2>4.1 Civil Construction</h2><p>From new structures to repair and renovation, we deliver strong and long-lasting civil works.</p></div>
+          <div className="section-head"><span className="eyebrow">Service 01</span><h2>4.1 {services[0].title}</h2><p>{services[0].short}</p></div>
           <ul className="service-list">
-            {civilServiceList.map((item) => (
-              <li className="civil-service-wrap" key={item}><div className="civil-service-card"><span>{item}</span></div></li>
+            {services[0].features.map((item, index) => (
+              <li className="civil-service-wrap" key={`${services[0].key}-${item}-${index}`}><div className="civil-service-card"><span>{item}</span></div></li>
             ))}
           </ul>
         </div>
@@ -95,10 +152,10 @@ export default function Services() {
       <section className="section section-sand" id="electrical-works">
         <div className="electrical-works-bg" aria-hidden="true" />
         <div className="container">
-          <div className="section-head"><span className="eyebrow">Service 02</span><h2>4.2 Electrical Works</h2><p>Safe, compliant and efficient electrical solutions for every type of property.</p></div>
+          <div className="section-head"><span className="eyebrow">Service 02</span><h2>4.2 {services[1].title}</h2><p>{services[1].short}</p></div>
           <ul className="service-list">
-            {electricalServiceList.map((item) => (
-              <li className="electrical-service-wrap" key={item}><div className="electrical-service-card"><span>{item}</span></div></li>
+            {services[1].features.map((item, index) => (
+              <li className="electrical-service-wrap" key={`${services[1].key}-${item}-${index}`}><div className="electrical-service-card"><span>{item}</span></div></li>
             ))}
           </ul>
         </div>
@@ -107,10 +164,10 @@ export default function Services() {
       <section className="section" id="water-treatment">
         <div className="water-treatment-bg" aria-hidden="true" />
         <div className="container">
-          <div className="section-head"><span className="eyebrow">Service 03</span><h2>4.3 Water Treatment</h2><p>Clean water and responsible wastewater management for homes, societies and industries.</p></div>
+          <div className="section-head"><span className="eyebrow">Service 03</span><h2>4.3 {services[2].title}</h2><p>{services[2].short}</p></div>
           <ul className="service-list">
-            {waterServiceList.map((item) => (
-              <li className="water-service-wrap" key={item}><div className="water-service-card"><span>{item}</span></div></li>
+            {services[2].features.map((item, index) => (
+              <li className="water-service-wrap" key={`${services[2].key}-${item}-${index}`}><div className="water-service-card"><span>{item}</span></div></li>
             ))}
           </ul>
         </div>
