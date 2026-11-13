@@ -1,13 +1,176 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AnimatedCounter from '../components/AnimatedCounter';
+import { findSection, resolveMediaUrl, textLines, textRows, useSiteContent } from '../services/siteContent';
+
+const DEFAULT_ABOUT = {
+  hero: {
+    heading: 'Infrastructure solutions built on trust and commitment',
+    subtitle: 'ABOUT US',
+    body: 'Uprising Infra LLP is a Mumbai-based company working across civil construction, electrical works and water treatment systems.'
+  },
+  introduction: {
+    heading: 'Built on honesty, quality and long-term relationships.',
+    subtitle: 'WHO WE ARE',
+    firstParagraph: 'Uprising Infra LLP is a registered Limited Liability Partnership based in Mumbai, Maharashtra. We specialise in civil construction, electrical works and water treatment systems. Our name reflects our belief: every project is a step towards growth, and every client relationship should rise with it.',
+    secondParagraph: 'From residential developments to industrial and commercial work, we focus on practical execution, transparent communication and dependable results that stand the test of time.'
+  },
+  mission: {
+    heading: 'Deliver safe, durable and cost-effective infrastructure solutions.',
+    subtitle: 'Our Mission',
+    body: 'To deliver safe, durable and cost-effective infrastructure solutions that exceed client expectations, while maintaining honesty, quality and timely completion.',
+    items: ['Safe', 'Durable', 'Cost-effective']
+  },
+  vision: {
+    heading: 'Be one of Mumbai’s most trusted infrastructure companies.',
+    subtitle: 'Our Vision',
+    body: "To become one of Mumbai's most trusted infrastructure companies, known for integrity, innovation and long-term client relationships.",
+    items: ['Integrity', 'Innovation', 'Long-term trust']
+  },
+  values: {
+    heading: 'What guides every project we take on.',
+    subtitle: 'Our Values',
+    items: [
+      { title: 'Integrity', description: 'We say what we do and do what we say.' },
+      { title: 'Quality', description: 'We never compromise on materials or workmanship.' },
+      { title: 'Safety', description: 'The wellbeing of our people and clients comes first.' },
+      { title: 'Commitment', description: 'We respect deadlines and budgets.' },
+      { title: 'Sustainability', description: 'We promote water conservation and efficient energy use.' }
+    ]
+  },
+  leadership: {
+    heading: 'Led by a hands-on construction leader.',
+    subtitle: 'Leadership',
+    body: "Ajay Shivnath Vishwakarma has led Uprising Infra LLP since its early operations. He oversees the firm's civil construction, electrical and water treatment projects from planning through execution, with hands-on involvement in site management, vendor coordination and quality control across residential, commercial and industrial work in Mumbai.",
+    image: '/assets/director-ajay.jpg'
+  },
+  companyDetails: {
+    heading: 'Transparent, accountable and committed to long-term trust.',
+    subtitle: 'Company Details',
+    items: [
+      { label: 'Company Name', value: 'Uprising Infra LLP' },
+      { label: 'LLPIN', value: 'AAS-6610' },
+      { label: 'GST No.', value: '27AAGFU3924K1ZU' },
+      { label: 'Email', value: 'uprisingmumbai@gmail.com' }
+    ]
+  },
+  finalCta: {
+    heading: 'Need an infrastructure solution?',
+    body: 'Contact Uprising Infra LLP for a free site visit and quotation.',
+    b1t: 'Get a Free Quote',
+    b1l: '/contact'
+  }
+};
+
+const COMPANY_DETAIL_ICONS = [
+  <svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V5l7-2v18M12 9h7v12M8 7h1M8 11h1M8 15h1M15 12h1M15 16h1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  <svg viewBox="0 0 24 24" fill="none"><path d="M6 3h8l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M14 3v5h5M8 13h8M8 17h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>,
+  <svg viewBox="0 0 24 24" fill="none"><path d="M4 3h16v18l-3-2-3 2-3-2-3 2-4-2V3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M8 8h8M8 12h2M14 12h2M8 16h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg>,
+  <svg viewBox="0 0 24 24" fill="none"><path d="M3 5h18v14H3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="m4 6 8 7 8-7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+];
+
+const nonEmpty = (value) => String(value ?? '').trim();
+const sectionText = (section, field, fallback) => nonEmpty(section?.[field]) || fallback;
+const allowedLink = (value, fallback) => {
+  const link = nonEmpty(value);
+  return /^(\/|#|https?:\/\/|mailto:|tel:)/.test(link) ? link : fallback;
+};
+
+function readAboutContent(site) {
+  if (!site) return DEFAULT_ABOUT;
+
+  try {
+    const heroSection = findSection(site.about, 'About Hero');
+    const introductionSection = findSection(site.about, 'Company Introduction');
+    const missionSection = findSection(site.about, 'Mission');
+    const visionSection = findSection(site.about, 'Vision');
+    const valuesSection = findSection(site.about, 'Company Values');
+    const leadershipSection = findSection(site.about, 'Leadership');
+    const detailsSection = findSection(site.about, 'Company Details');
+    const ctaSection = findSection(site.about, 'Final CTA');
+
+    const introductionParagraphs = nonEmpty(introductionSection?.body)
+      .split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean);
+    const parsePairs = (items) => textRows(items)
+      .map((parts) => ({
+        first: nonEmpty(parts[0]),
+        second: nonEmpty(parts[1]),
+        valid: parts.length === 2
+      }))
+      .filter(({ first, second, valid }) => valid && first && second);
+    const missionItems = textLines(missionSection?.items);
+    const visionItems = textLines(visionSection?.items);
+    const valueItems = parsePairs(valuesSection?.items)
+      .map(({ first, second }) => ({ title: first, description: second }));
+    const detailItems = parsePairs(detailsSection?.items)
+      .map(({ first, second }) => ({ label: first, value: second }));
+    const missionHeading = nonEmpty(missionSection?.heading);
+    const visionHeading = nonEmpty(visionSection?.heading);
+    const leadershipImage = nonEmpty(leadershipSection?.image);
+
+    return {
+      hero: {
+        heading: sectionText(heroSection, 'heading', DEFAULT_ABOUT.hero.heading),
+        subtitle: sectionText(heroSection, 'subtitle', DEFAULT_ABOUT.hero.subtitle),
+        body: sectionText(heroSection, 'body', DEFAULT_ABOUT.hero.body)
+      },
+      introduction: {
+        heading: sectionText(introductionSection, 'heading', DEFAULT_ABOUT.introduction.heading),
+        subtitle: sectionText(introductionSection, 'subtitle', DEFAULT_ABOUT.introduction.subtitle),
+        firstParagraph: introductionParagraphs[0] || DEFAULT_ABOUT.introduction.firstParagraph,
+        secondParagraph: introductionParagraphs[1] || DEFAULT_ABOUT.introduction.secondParagraph
+      },
+      mission: {
+        heading: missionHeading || DEFAULT_ABOUT.mission.heading,
+        headingFromBackend: Boolean(missionHeading),
+        subtitle: sectionText(missionSection, 'subtitle', DEFAULT_ABOUT.mission.subtitle),
+        body: sectionText(missionSection, 'body', DEFAULT_ABOUT.mission.body),
+        items: missionItems.length ? missionItems : DEFAULT_ABOUT.mission.items
+      },
+      vision: {
+        heading: visionHeading || DEFAULT_ABOUT.vision.heading,
+        headingFromBackend: Boolean(visionHeading),
+        subtitle: sectionText(visionSection, 'subtitle', DEFAULT_ABOUT.vision.subtitle),
+        body: sectionText(visionSection, 'body', DEFAULT_ABOUT.vision.body),
+        items: visionItems.length ? visionItems : DEFAULT_ABOUT.vision.items
+      },
+      values: {
+        heading: sectionText(valuesSection, 'heading', DEFAULT_ABOUT.values.heading),
+        headingFromBackend: Boolean(nonEmpty(valuesSection?.heading)),
+        subtitle: sectionText(valuesSection, 'subtitle', DEFAULT_ABOUT.values.subtitle),
+        items: valueItems.length ? valueItems : DEFAULT_ABOUT.values.items
+      },
+      leadership: {
+        heading: sectionText(leadershipSection, 'heading', DEFAULT_ABOUT.leadership.heading),
+        subtitle: sectionText(leadershipSection, 'subtitle', DEFAULT_ABOUT.leadership.subtitle),
+        body: sectionText(leadershipSection, 'body', DEFAULT_ABOUT.leadership.body),
+        image: leadershipImage ? resolveMediaUrl(leadershipImage) : DEFAULT_ABOUT.leadership.image
+      },
+      companyDetails: {
+        heading: sectionText(detailsSection, 'heading', DEFAULT_ABOUT.companyDetails.heading),
+        headingFromBackend: Boolean(nonEmpty(detailsSection?.heading)),
+        subtitle: sectionText(detailsSection, 'subtitle', DEFAULT_ABOUT.companyDetails.subtitle),
+        items: detailItems.length ? detailItems : DEFAULT_ABOUT.companyDetails.items
+      },
+      finalCta: {
+        heading: sectionText(ctaSection, 'heading', DEFAULT_ABOUT.finalCta.heading),
+        body: sectionText(ctaSection, 'body', DEFAULT_ABOUT.finalCta.body),
+        b1t: sectionText(ctaSection, 'b1t', DEFAULT_ABOUT.finalCta.b1t),
+        b1l: allowedLink(ctaSection?.b1l, DEFAULT_ABOUT.finalCta.b1l)
+      }
+    };
+  } catch (error) {
+    console.error('Unable to parse About page content:', error);
+    return DEFAULT_ABOUT;
+  }
+}
 
 function WordReveal({ text, maskClass, wordClass, index = 0 }) {
   return (
     <>
       {text.split(/\s+/).map((word, wordIndex) => (
         <Fragment key={`${word}-${index + wordIndex}`}>
-          {wordIndex > 0 ? ' ' : null}
+          {wordIndex > 0 && ' '}
           <span className={maskClass} aria-hidden="true">
             <span className={wordClass} style={{ '--word-i': index + wordIndex, '--word-index': index + wordIndex }}>{word}</span>
           </span>
@@ -127,16 +290,10 @@ function SnapshotStat({ target, suffix = '', label, index = 0 }) {
   );
 }
 
-const values = [
-  { title: 'Integrity', text: 'We say what we do and do what we say.' },
-  { title: 'Quality', text: 'We never compromise on materials or workmanship.' },
-  { title: 'Safety', text: 'The wellbeing of our people and clients comes first.' },
-  { title: 'Commitment', text: 'We respect deadlines and budgets.' },
-  { title: 'Sustainability', text: 'We promote water conservation and efficient energy use.' }
-];
-
 export default function About() {
   const [activeService, setActiveService] = useState(null);
+  const site = useSiteContent();
+  const content = readAboutContent(site);
 
   return (
     <main id="main" className="about-main">
@@ -154,17 +311,17 @@ export default function About() {
           <nav className="about-breadcrumb" aria-label="Breadcrumb">
             <Link to="/">Home</Link><span aria-hidden="true">/</span><span>About</span>
           </nav>
-          <span className="about-hero-eyebrow">ABOUT US</span>
+          <span className="about-hero-eyebrow">{content.hero.subtitle}</span>
           <h1 id="about-hero-title" aria-label="Infrastructure solutions built on trust and commitment">
-            <span className="about-hero-word-mask"><span className="about-hero-word">Infrastructure</span></span>
-            <span className="about-hero-word-mask"><span className="about-hero-word">solutions</span></span>
-            <span className="about-hero-word-mask"><span className="about-hero-word">built</span></span>
-            <span className="about-hero-word-mask"><span className="about-hero-word">on</span></span>
-            <span className="about-hero-word-mask"><span className="about-hero-word">trust</span></span>
-            <span className="about-hero-word-mask"><span className="about-hero-word">and</span></span>
-            <span className="about-hero-word-mask"><span className="about-hero-word">commitment</span></span>
+            {content.hero.heading.split(/\s+/).filter(Boolean).map((word, index) => (
+              <Fragment key={`${index}-${word}`}>
+                {index > 0 && ' '}
+                <span className="about-hero-word-mask"><span className="about-hero-word">{word}</span></span>
+              </Fragment>
+            ))}
           </h1>
-          <p>Uprising Infra LLP is a Mumbai-based company working across civil construction, electrical works and water treatment systems.</p>
+          <p>{content.hero.body}</p>
+          {/* not backend-driven: hero stats */}
           <div className="about-hero-stats" aria-label="Company snapshot">
             <SnapshotStat target={20} suffix="+" label="PROJECTS COMPLETED" index={0} />
             <SnapshotStat target={6} suffix="+" label="YEARS OF EXPERIENCE" index={1} />
@@ -177,20 +334,19 @@ export default function About() {
         <div className="who-services-grid">
           <div className="who-services-left">
             <header className="who-services-heading">
-              <span className="who-services-eyebrow">WHO WE ARE</span>
+              <span className="who-services-eyebrow">{content.introduction.subtitle}</span>
               <h2 id="who-we-are-title" aria-label="Built on honesty, quality and long-term relationships.">
-                <span className="who-services-mask"><span className="who-services-word">Built</span></span>
-                <span className="who-services-mask"><span className="who-services-word">on</span></span>
-                <span className="who-services-mask"><span className="who-services-word">honesty,</span></span>
-                <span className="who-services-mask"><span className="who-services-word">quality</span></span>
-                <span className="who-services-mask"><span className="who-services-word">and</span></span>
-                <span className="who-services-mask"><span className="who-services-word">long-term</span></span>
-                <span className="who-services-mask"><span className="who-services-word">relationships.</span></span>
+                {content.introduction.heading.split(/\s+/).filter(Boolean).map((word, index) => (
+                  <Fragment key={`${index}-${word}`}>
+                    {index > 0 && ' '}
+                    <span className="who-services-mask"><span className="who-services-word">{word}</span></span>
+                  </Fragment>
+                ))}
               </h2>
             </header>
             <div className="who-services-copy">
-              <p className="who-services-paragraph who-services-paragraph--first">Uprising Infra LLP is a registered Limited Liability Partnership based in Mumbai, Maharashtra. We specialise in <span className="who-services-highlight">civil construction</span>, <span className="who-services-highlight">electrical works</span> and <span className="who-services-highlight">water treatment systems</span>. Our name reflects our belief: every project is a step towards growth, and every client relationship should rise with it.</p>
-              <p className="who-services-paragraph who-services-paragraph--second">From residential developments to industrial and commercial work, we focus on practical execution, transparent communication and dependable results that stand the test of time.</p>
+              <p className="who-services-paragraph who-services-paragraph--first">{content.introduction.firstParagraph === DEFAULT_ABOUT.introduction.firstParagraph ? <>Uprising Infra LLP is a registered Limited Liability Partnership based in Mumbai, Maharashtra. We specialise in <span className="who-services-highlight">civil construction</span>, <span className="who-services-highlight">electrical works</span> and <span className="who-services-highlight">water treatment systems</span>. Our name reflects our belief: every project is a step towards growth, and every client relationship should rise with it.</> : content.introduction.firstParagraph}</p>
+              <p className="who-services-paragraph who-services-paragraph--second">{content.introduction.secondParagraph}</p>
             </div>
           </div>
 
@@ -199,6 +355,7 @@ export default function About() {
               <span className="who-services-glare" aria-hidden="true" />
               <span className="who-services-light" aria-hidden="true" />
               <h3>What We Do</h3>
+              {/* not backend-driven: service rows and tags */}
               <div className="who-service-list">
                 <div className={`who-service-row${activeService === 0 ? ' is-open' : ''}`} role="button" tabIndex={0} aria-expanded={activeService === 0} onClick={() => setActiveService(activeService === 0 ? null : 0)} onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
@@ -244,16 +401,16 @@ export default function About() {
             <span className="no" aria-hidden="true">01</span>
             <div className="eb">
               <span className="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle pathLength={1} cx="12" cy="12" r="7.5" /><circle cx="12" cy="12" r="3.5" /><path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" /></svg></span>
-              <i aria-hidden="true" /><span className="lb">Our Mission</span>
+              <i aria-hidden="true" /><span className="lb">{content.mission.subtitle}</span>
             </div>
             <h3 aria-label="Deliver safe, durable and cost-effective infrastructure solutions.">
-              <WordReveal text="Deliver" maskClass="mv-word" wordClass="mv-word-inner" />
-              {' '}<em><WordReveal text="safe, durable and cost-effective" maskClass="mv-word" wordClass="mv-word-inner" index={1} /></em>
-              {' '}<WordReveal text="infrastructure solutions." maskClass="mv-word" wordClass="mv-word-inner" index={5} />
+              {content.mission.headingFromBackend
+                ? <em><WordReveal text={content.mission.heading} maskClass="mv-word" wordClass="mv-word-inner" /></em>
+                : <><WordReveal text="Deliver" maskClass="mv-word" wordClass="mv-word-inner" />{' '}<em><WordReveal text="safe, durable and cost-effective" maskClass="mv-word" wordClass="mv-word-inner" index={1} /></em>{' '}<WordReveal text="infrastructure solutions." maskClass="mv-word" wordClass="mv-word-inner" index={5} /></>}
             </h3>
-            <p>To deliver safe, durable and cost-effective infrastructure solutions that exceed client expectations, while maintaining <strong>honesty, quality and timely completion.</strong></p>
+            <p>{content.mission.body === DEFAULT_ABOUT.mission.body ? <>To deliver safe, durable and cost-effective infrastructure solutions that exceed client expectations, while maintaining <strong>honesty, quality and timely completion.</strong></> : content.mission.body}</p>
             <ul className="chips" aria-label="Mission principles">
-              <li style={{ '--i': 0 }}>Safe</li><li style={{ '--i': 1 }}>Durable</li><li style={{ '--i': 2 }}>Cost-effective</li>
+              {content.mission.items.map((item, index) => <li style={{ '--i': index }} key={`${index}-${item}`}>{item}</li>)}
             </ul>
           </article>
 
@@ -262,16 +419,16 @@ export default function About() {
             <span className="no" aria-hidden="true">02</span>
             <div className="eb">
               <span className="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path pathLength={1} d="M2 12s3.7-7 10-7 10 7 10 7-3.7 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3.2" /></svg></span>
-              <i aria-hidden="true" /><span className="lb">Our Vision</span>
+              <i aria-hidden="true" /><span className="lb">{content.vision.subtitle}</span>
             </div>
             <h3 aria-label="Be one of Mumbai’s most trusted infrastructure companies.">
-              <WordReveal text="Be one of Mumbai’s" maskClass="mv-word" wordClass="mv-word-inner" />
-              {' '}<em><WordReveal text="most trusted" maskClass="mv-word" wordClass="mv-word-inner" index={4} /></em>
-              {' '}<WordReveal text="infrastructure companies." maskClass="mv-word" wordClass="mv-word-inner" index={6} />
+              {content.vision.headingFromBackend
+                ? <em><WordReveal text={content.vision.heading} maskClass="mv-word" wordClass="mv-word-inner" /></em>
+                : <><WordReveal text="Be one of Mumbai’s" maskClass="mv-word" wordClass="mv-word-inner" />{' '}<em><WordReveal text="most trusted" maskClass="mv-word" wordClass="mv-word-inner" index={4} /></em>{' '}<WordReveal text="infrastructure companies." maskClass="mv-word" wordClass="mv-word-inner" index={6} /></>}
             </h3>
-            <p>To become one of Mumbai's most trusted infrastructure companies, known for <strong>integrity, innovation and long-term client relationships.</strong></p>
+            <p>{content.vision.body === DEFAULT_ABOUT.vision.body ? <>To become one of Mumbai's most trusted infrastructure companies, known for <strong>integrity, innovation and long-term client relationships.</strong></> : content.vision.body}</p>
             <ul className="chips" aria-label="Vision principles">
-              <li style={{ '--i': 0 }}>Integrity</li><li style={{ '--i': 1 }}>Innovation</li><li style={{ '--i': 2 }}>Long-term trust</li>
+              {content.vision.items.map((item, index) => <li style={{ '--i': index }} key={`${index}-${item}`}>{item}</li>)}
             </ul>
           </article>
         </div>
@@ -280,22 +437,22 @@ export default function About() {
       <section className="about-values" id="vals">
         <div className="container">
           <div className="section-header">
-            <span className="eyebrow"><span className="vals-eyebrow-label">Our Values</span></span>
+            <span className="eyebrow"><span className="vals-eyebrow-label">{content.values.subtitle}</span></span>
             <h2 aria-label="What guides every project we take on.">
-              <WordReveal text="What guides" maskClass="vals-word-mask" wordClass="vals-word-inner" />
-              {' '}<em><WordReveal text="every project" maskClass="vals-word-mask" wordClass="vals-word-inner" index={2} /></em>
-              {' '}<WordReveal text="we take on." maskClass="vals-word-mask" wordClass="vals-word-inner" index={4} />
+              {content.values.headingFromBackend
+                ? <em><WordReveal text={content.values.heading} maskClass="vals-word-mask" wordClass="vals-word-inner" /></em>
+                : <><WordReveal text="What guides" maskClass="vals-word-mask" wordClass="vals-word-inner" />{' '}<em><WordReveal text="every project" maskClass="vals-word-mask" wordClass="vals-word-inner" index={2} /></em>{' '}<WordReveal text="we take on." maskClass="vals-word-mask" wordClass="vals-word-inner" index={4} /></>}
             </h2>
           </div>
 
           <div className="values-grid">
-            {values.map((value, index) => (
-              <div className="rv" style={{ '--i': index }} key={value.title}>
+            {content.values.items.map((value, index) => (
+              <div className="rv" style={{ '--i': index }} key={`${index}-${value.title}`}>
                 <article className="card">
                   <span className="no" aria-hidden="true">0{index + 1}</span>
                   <span className="ic" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path pathLength="1" d="M12 3 19 6v5c0 4.7-2.8 8-7 10-4.2-2-7-5.3-7-10V6l7-3Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /><path pathLength="1" d="m8.5 12 2.2 2.2 4.8-4.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
                   <h3 aria-label={value.title}><SplitLetters value={value.title} index={index} /></h3>
-                  <p>{value.text}</p>
+                  <p>{value.description}</p>
                 </article>
               </div>
             ))}
@@ -306,24 +463,25 @@ export default function About() {
       <section className="about-leadership" id="about-leadership">
         <div className="container">
           <div className="section-header">
-            <span className="eyebrow"><span className="leadership-eyebrow-label">Leadership</span></span>
+            <span className="eyebrow"><span className="leadership-eyebrow-label">{content.leadership.subtitle}</span></span>
             <h2 aria-label="Led by a hands-on construction leader.">
-              <WordReveal text="Led by a hands-on construction leader." maskClass="leader-heading-mask" wordClass="leader-heading-word" />
+              <WordReveal text={content.leadership.heading} maskClass="leader-heading-mask" wordClass="leader-heading-word" />
             </h2>
           </div>
 
           <div className="leadership-panel">
             <div className="leader-photo-wrap">
-              <img src="/assets/director-ajay.jpg" alt="Ajay Shivnath Vishwakarma, CEO and Designated Partner of Uprising Infra LLP" />
+              <img src={content.leadership.image} alt="Ajay Shivnath Vishwakarma, CEO and Designated Partner of Uprising Infra LLP" onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = DEFAULT_ABOUT.leadership.image; }} />
             </div>
 
             <div className="leader-content">
+              {/* not backend-driven: person name, role/date line, and tags */}
               <span className="leader-role">CEO &amp; Designated Partner</span>
               <h3 aria-label="Ajay Shivnath Vishwakarma">
                 <WordReveal text="Ajay Shivnath Vishwakarma" maskClass="leader-name-mask" wordClass="leader-name-word" />
               </h3>
               <p className="leader-subtitle">Designated Partner at Uprising Infra LLP since 20 July 2020</p>
-              <p>Ajay Shivnath Vishwakarma has led Uprising Infra LLP since its early operations. He oversees the firm's civil construction, electrical and water treatment projects from planning through execution, with hands-on involvement in site management, vendor coordination and quality control across residential, commercial and industrial work in Mumbai.</p>
+              <p>{content.leadership.body}</p>
               <div className="leader-tags">
                 <span style={{ '--tag-i': 0 }}>Site Management</span>
                 <span style={{ '--tag-i': 1 }}>Vendor Coordination</span>
@@ -339,35 +497,22 @@ export default function About() {
         <div className="cd-bg" aria-hidden="true" />
         <div className="container company-detail-wrap">
           <div className="section-header">
-            <span className="eyebrow"><span className="company-eyebrow-label">Company Details</span></span>
+            <span className="eyebrow"><span className="company-eyebrow-label">{content.companyDetails.subtitle}</span></span>
           <h2 aria-label="Transparent, accountable and committed to long-term trust.">
-            <WordReveal text="Transparent, accountable and" maskClass="company-heading-mask" wordClass="company-heading-word" />
-            {' '}<em><WordReveal text="committed" maskClass="company-heading-mask" wordClass="company-heading-word" index={3} /></em>
-            {' '}<WordReveal text="to long-term trust." maskClass="company-heading-mask" wordClass="company-heading-word" index={4} />
+            {content.companyDetails.headingFromBackend
+              ? <em><WordReveal text={content.companyDetails.heading} maskClass="company-heading-mask" wordClass="company-heading-word" /></em>
+              : <><WordReveal text="Transparent, accountable and" maskClass="company-heading-mask" wordClass="company-heading-word" />{' '}<em><WordReveal text="committed" maskClass="company-heading-mask" wordClass="company-heading-word" index={3} /></em>{' '}<WordReveal text="to long-term trust." maskClass="company-heading-mask" wordClass="company-heading-word" index={4} /></>}
           </h2>
           </div>
           <div className="company-detail-panel">
             <div className="company-detail-grid">
-            <div className="company-detail-box" style={{ '--i': 0 }}>
-                <span className="company-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 21h18M5 21V5l7-2v18M12 9h7v12M8 7h1M8 11h1M8 15h1M15 12h1M15 16h1" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
-                <span className="company-detail-text"><span className="company-detail-label">Company Name</span><LetterReveal value="Uprising Infra LLP" index={0} /></span>
-                <CopyDetailButton label="company name" value="Uprising Infra LLP" />
-              </div>
-              <div className="company-detail-box" style={{ '--i': 1 }}>
-                <span className="company-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M6 3h8l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M14 3v5h5M8 13h8M8 17h6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
-                <span className="company-detail-text"><span className="company-detail-label">LLPIN</span><LetterReveal value="AAS-6610" index={1} /></span>
-                <CopyDetailButton label="LLPIN" value="AAS-6610" />
-              </div>
-              <div className="company-detail-box" style={{ '--i': 2 }}>
-                <span className="company-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 3h16v18l-3-2-3 2-3-2-3 2-4-2V3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M8 8h8M8 12h2M14 12h2M8 16h8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /></svg></span>
-                <span className="company-detail-text"><span className="company-detail-label">GST No.</span><LetterReveal value="27AAGFU3924K1ZU" index={2} /></span>
-                <CopyDetailButton label="GST number" value="27AAGFU3924K1ZU" />
-              </div>
-              <div className="company-detail-box" style={{ '--i': 3 }}>
-                <span className="company-detail-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M3 5h18v14H3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="m4 6 8 7 8-7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
-                <span className="company-detail-text"><span className="company-detail-label">Email</span><LetterReveal value="uprisingmumbai@gmail.com" index={3} /></span>
-                <CopyDetailButton label="email" value="uprisingmumbai@gmail.com" />
-              </div>
+              {content.companyDetails.items.map((item, index) => (
+                <div className="company-detail-box" style={{ '--i': index }} key={`${index}-${item.label}-${item.value}`}>
+                  <span className="company-detail-icon" aria-hidden="true">{COMPANY_DETAIL_ICONS[index % COMPANY_DETAIL_ICONS.length]}</span>
+                  <span className="company-detail-text"><span className="company-detail-label">{item.label}</span><LetterReveal value={item.value} index={index} /></span>
+                  <CopyDetailButton label={item.label === 'GST No.' ? 'GST number' : item.label.toLowerCase()} value={item.value} />
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -376,10 +521,12 @@ export default function About() {
       <section className="section">
         <div className="container">
           <div className="cta-band">
-            <h2>Need an infrastructure solution?</h2>
-            <p>Contact Uprising Infra LLP for a free site visit and quotation.</p>
+            <h2>{content.finalCta.heading}</h2>
+            <p>{content.finalCta.body}</p>
             <div className="cta-actions">
-              <Link to="/contact" className="btn btn-light"><span>Get a Free Quote</span></Link>
+              {/^(https?:\/\/|mailto:|tel:)/.test(content.finalCta.b1l)
+                ? <a href={content.finalCta.b1l} className="btn btn-light"><span>{content.finalCta.b1t}</span></a>
+                : <Link to={content.finalCta.b1l} className="btn btn-light"><span>{content.finalCta.b1t}</span></Link>}
             </div>
           </div>
         </div>
