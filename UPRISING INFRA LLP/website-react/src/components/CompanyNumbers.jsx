@@ -1,12 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import OdometerCounter from './OdometerCounter';
+import { findSection, textRows, useSiteContent } from '../services/siteContent';
 
-const figures = [
-  { target: 20, label: 'Projects Completed', icon: 'check' },
-  { target: 20, label: 'Satisfied Clients', icon: 'heart' },
-  { target: 6, suffix: '+', label: 'Years of Experience', icon: 'clock' },
-  { target: 3, label: 'Core Services', icon: 'orbit' }
-];
+const DEFAULT_CONTENT = {
+  heading: 'Built on real work and client relationships',
+  subtitle: 'Our Numbers',
+  figures: [
+    { target: 20, label: 'Projects Completed', icon: 'check' },
+    { target: 20, label: 'Satisfied Clients', icon: 'heart' },
+    { target: 6, suffix: '+', label: 'Years of Experience', icon: 'clock' },
+    { target: 3, label: 'Core Services', icon: 'orbit' }
+  ]
+};
+
+function parseFigure(parts, index) {
+  const numberPart = String(parts?.[0] ?? '').trim();
+  const label = String(parts?.[1] ?? '').trim();
+  if (!numberPart || !label) return null;
+
+  const match = numberPart.match(/^((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)([^\d,.].*)?$/);
+  if (!match) return null;
+
+  const normalizedNumber = match[1].replace(/,/g, '');
+  const target = Number.parseInt(normalizedNumber, 10);
+  if (!Number.isFinite(target)) return null;
+
+  const decimal = normalizedNumber.split('.')[1];
+  return {
+    target,
+    suffix: `${decimal ? `.${decimal}` : ''}${(match[2] ?? '').trim()}`,
+    label,
+    icon: DEFAULT_CONTENT.figures[index]?.icon || 'check'
+  };
+}
 
 const burstColors = ['#e1301f', '#f0b429', '#368fc4'];
 
@@ -15,6 +41,7 @@ function NumberCard({ figure, index, replayAll }) {
   const hasAutoPlayed = useRef(false);
   const burstTimer = useRef(null);
   const burstId = useRef(0);
+  const previousValue = useRef({ target: figure.target, suffix: figure.suffix });
   const [isRevealed, setIsRevealed] = useState(false);
   const [hasRevealed, setHasRevealed] = useState(false);
   const [run, setRun] = useState(0);
@@ -52,7 +79,17 @@ function NumberCard({ figure, index, replayAll }) {
 
     observer.observe(card);
     return () => observer.disconnect();
-  }, []);
+  }, [figure.target, figure.suffix]);
+
+  useEffect(() => {
+    const previous = previousValue.current;
+    previousValue.current = { target: figure.target, suffix: figure.suffix };
+    if (previous.target === figure.target && previous.suffix === figure.suffix) return;
+
+    hasAutoPlayed.current = true;
+    setIsRevealed(true);
+    setRun((current) => current + 1);
+  }, [figure.target, figure.suffix]);
 
   useEffect(() => {
     if (replayAll === 0) return;
@@ -148,29 +185,54 @@ function NumberCard({ figure, index, replayAll }) {
 
 export default function CompanyNumbers() {
   const [replayAll, setReplayAll] = useState(0);
+  const site = useSiteContent();
+  let content = DEFAULT_CONTENT;
+
+  if (site) {
+    try {
+      const section = findSection(site.home, 'Company Numbers');
+      const hasItems = typeof section?.items === 'string' && section.items.trim() !== '';
+
+      if (section && hasItems) {
+        const backendFigures = textRows(section.items)
+          .map((parts, index) => parseFigure(parts, index))
+          .filter(Boolean);
+        content = {
+          heading: typeof section.heading === 'string' && section.heading.trim()
+            ? section.heading.trim()
+            : DEFAULT_CONTENT.heading,
+          subtitle: typeof section.subtitle === 'string' && section.subtitle.trim()
+            ? section.subtitle.trim()
+            : DEFAULT_CONTENT.subtitle,
+          figures: backendFigures.length ? backendFigures : DEFAULT_CONTENT.figures
+        };
+      }
+    } catch (error) {
+      console.error('Unable to parse Company Numbers content:', error);
+    }
+  }
 
   return (
     <section className="section numbers-section" id="numbers" aria-labelledby="numbers-title">
       <div className="numbers-background" aria-hidden="true" />
       <div className="numbers-inner">
         <header className="numbers-heading">
-          <span className="numbers-eyebrow">Our Numbers</span>
-          <h2 id="numbers-title" aria-label="Built on real work and client relationships">
-            <span className="numbers-word-mask"><span className="numbers-word">Built</span></span>{' '}
-            <span className="numbers-word-mask"><span className="numbers-word">on</span></span>{' '}
-            <span className="numbers-word-mask"><span className="numbers-word">real</span></span>{' '}
-            <span className="numbers-word-mask"><span className="numbers-word">work</span></span>{' '}
-            <span className="numbers-word-mask"><span className="numbers-word">and</span></span>{' '}
-            <span className="numbers-word-mask"><span className="numbers-word">client</span></span>{' '}
-            <span className="numbers-word-mask"><span className="numbers-word">relationships</span></span>
+          <span className="numbers-eyebrow">{content.subtitle}</span>
+          <h2 id="numbers-title" aria-label={content.heading}>
+            {content.heading.split(/\s+/).filter(Boolean).map((word, index) => (
+              <Fragment key={`${index}-${word}`}>
+                {index > 0 && ' '}
+                <span className="numbers-word-mask"><span className="numbers-word">{word}</span></span>
+              </Fragment>
+            ))}
           </h2>
         </header>
         <div className="numbers-grid">
-          {figures.map((figure, index) => (
+          {content.figures.map((figure, index) => (
             <NumberCard
               figure={figure}
               index={index}
-              key={figure.label}
+              key={`${index}-${figure.label}`}
               replayAll={replayAll}
             />
           ))}
