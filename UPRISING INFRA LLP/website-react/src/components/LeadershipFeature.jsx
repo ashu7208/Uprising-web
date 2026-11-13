@@ -1,6 +1,19 @@
 import { Link } from 'react-router-dom';
 import AnimatedCounter from './AnimatedCounter';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
+import { findSection, resolveMediaUrl, textLines, useSiteContent } from '../services/siteContent';
+
+const DEFAULT_LEADERSHIP = {
+  name: 'Ajay Shivnath Vishwakarma',
+  role: 'CEO & Designated Partner',
+  photo: '/assets/director-ajay.jpg',
+  alt: 'Ajay Shivnath Vishwakarma, CEO and Designated Partner of Uprising Infra LLP',
+  bio: "Ajay Shivnath Vishwakarma has led Uprising Infra LLP since its early operations. He oversees the firm's civil construction, electrical and water treatment projects from planning through execution, with hands-on involvement in site management, vendor coordination and quality control across residential, commercial and industrial work in Mumbai.",
+  exp: 'Site Management\nVendor Coordination\nQuality Control\nPlanning to Execution'
+};
+
+const DEFAULT_HEADING = 'Led by a hands-on construction leader';
+const DEFAULT_SUBTITLE = 'Designated Partner at Uprising Infra LLP since 20 July 2020';
 
 const stats = [
   { target: 6, suffix: ' +', label: 'Years' },
@@ -28,18 +41,57 @@ function LeadershipStat({ stat, index }) {
 }
 
 export default function LeadershipFeature() {
+  const site = useSiteContent();
+  let heading = DEFAULT_HEADING;
+  let subtitle = DEFAULT_SUBTITLE;
+  try {
+    const section = findSection(site?.home, 'Leadership');
+    const backendHeading = String(section?.heading ?? '').trim();
+    const backendSubtitle = String(section?.subtitle ?? '').trim();
+    if (backendHeading) heading = backendHeading;
+    if (backendSubtitle) subtitle = backendSubtitle;
+  } catch {
+    heading = DEFAULT_HEADING;
+    subtitle = DEFAULT_SUBTITLE;
+  }
+  const headingWords = heading.split(/\s+/).filter(Boolean);
+
+  let leadership = DEFAULT_LEADERSHIP;
+  try {
+    const person = Array.isArray(site?.leadership) ? site.leadership[0] : null;
+    const name = String(person?.name ?? '').trim();
+    if (name) {
+      const role = String(person.role ?? '').trim();
+      const bio = String(person.bio ?? '').trim();
+      const exp = String(person.exp ?? '').trim();
+      const photo = String(person.photo ?? '').trim();
+      leadership = {
+        name,
+        role: role || DEFAULT_LEADERSHIP.role,
+        photo: photo ? resolveMediaUrl(photo) || DEFAULT_LEADERSHIP.photo : DEFAULT_LEADERSHIP.photo,
+        alt: `${name}, ${role || DEFAULT_LEADERSHIP.role} of Uprising Infra LLP`,
+        bio: bio || DEFAULT_LEADERSHIP.bio,
+        exp: exp || DEFAULT_LEADERSHIP.exp
+      };
+    }
+  } catch {
+    leadership = DEFAULT_LEADERSHIP;
+  }
+  const nameWords = leadership.name.split(/\s+/);
+  const experienceLines = textLines(leadership.exp);
+
   return (
     <section className="leadership-section" aria-labelledby="leadership-title">
       <div className="leadership-inner">
         <header className="leadership-heading">
           <span className="leadership-eyebrow">Leadership</span>
           <h2 id="leadership-title" aria-label="Led by a hands-on construction leader">
-            <span className="leadership-word-mask"><span className="leadership-word">Led</span></span>
-            <span className="leadership-word-mask"><span className="leadership-word">by</span></span>
-            <span className="leadership-word-mask"><span className="leadership-word">a</span></span>
-            <span className="leadership-word-mask"><span className="leadership-word">hands-on</span></span>
-            <span className="leadership-word-mask"><span className="leadership-word">construction</span></span>
-            <span className="leadership-word-mask"><span className="leadership-word">leader</span></span>
+            {headingWords.map((word, index) => (
+              <Fragment key={`${index}-${word}`}>
+                {index > 0 && ' '}
+                <span className="leadership-word-mask"><span className="leadership-word">{word}</span></span>
+              </Fragment>
+            ))}
           </h2>
         </header>
 
@@ -51,9 +103,14 @@ export default function LeadershipFeature() {
             <div className="leadership-photo-frame">
               <div className="leadership-photo-tilt">
                 <img
-                  src="/assets/director-ajay.jpg"
-                  alt="Ajay Shivnath Vishwakarma, CEO and Designated Partner of Uprising Infra LLP"
+                  src={leadership.photo}
+                  alt={leadership.alt}
                   className="leadership-photo"
+                  onError={(event) => {
+                    const image = event.currentTarget;
+                    image.onerror = null;
+                    image.src = DEFAULT_LEADERSHIP.photo;
+                  }}
                 />
                 <span className="leadership-photo-glare" aria-hidden="true" />
               </div>
@@ -66,21 +123,21 @@ export default function LeadershipFeature() {
           </div>
 
           <div className="leadership-copy">
-            <span className="leadership-role">CEO &amp; Designated Partner</span>
-            <h3 aria-label="Ajay Shivnath Vishwakarma">
-              <span className="leadership-name-mask"><span className="leadership-name-word">Ajay</span></span>
-              <span className="leadership-name-mask"><span className="leadership-name-word">Shivnath</span></span>
-              <span className="leadership-name-mask"><span className="leadership-name-word">Vishwakarma</span></span>
+            <span className="leadership-role">{leadership.role}</span>
+            <h3 aria-label={leadership.name}>
+              {nameWords.map((word, index) => (
+                <Fragment key={`${index}-${word}`}>
+                  {index > 0 && ' '}
+                  <span className="leadership-name-mask"><span className="leadership-name-word">{word}</span></span>
+                </Fragment>
+              ))}
             </h3>
-            <p className="leadership-subtitle">Designated Partner at Uprising Infra LLP since 20 July 2020</p>
+            <p className="leadership-subtitle">{subtitle}</p>
             <p className="leadership-bio">
-              Ajay Shivnath Vishwakarma has led Uprising Infra LLP since its early operations. He oversees the firm&apos;s civil construction, electrical and water treatment projects from planning through execution, with hands-on involvement in site management, vendor coordination and quality control across residential, commercial and industrial work in Mumbai.
+              {leadership.bio}
             </p>
             <ul className="leadership-chips" aria-label="Areas of leadership">
-              <li>Site Management</li>
-              <li>Vendor Coordination</li>
-              <li>Quality Control</li>
-              <li>Planning to Execution</li>
+              {experienceLines.map((line, index) => <li key={`${index}-${line}`}>{line}</li>)}
             </ul>
             <div className="leadership-stats" aria-label="Leadership impact">
               {stats.map((stat, index) => (
